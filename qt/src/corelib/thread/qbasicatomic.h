@@ -43,7 +43,10 @@
 #define QBASICATOMIC_H
 
 #include <QtCore/qglobal.h>
-#include <atomic>
+
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
 
 QT_BEGIN_HEADER
 
@@ -86,32 +89,58 @@ public:
     static bool isReferenceCountingNative() { return true; }
     static bool isReferenceCountingWaitFree() { return true; }
 
+    #ifdef _MSC_VER
+    bool ref() { return _InterlockedIncrement((volatile long *)&_q_value) != 0; }
+    bool deref() { return _InterlockedDecrement((volatile long *)&_q_value) != 0; }
+    #else
     bool ref() { return __atomic_add_fetch(&_q_value, 1, __ATOMIC_SEQ_CST) != 0; }
     bool deref() { return __atomic_sub_fetch(&_q_value, 1, __ATOMIC_SEQ_CST) != 0; }
+    #endif
 
     static bool isTestAndSetNative() { return true; }
     static bool isTestAndSetWaitFree() { return true; }
 
+    #ifdef _MSC_VER
+    bool testAndSetRelaxed(int expectedValue, int newValue) { return _InterlockedCompareExchange((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    bool testAndSetAcquire(int expectedValue, int newValue) { return _InterlockedCompareExchange((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    bool testAndSetRelease(int expectedValue, int newValue) { return _InterlockedCompareExchange((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    bool testAndSetOrdered(int expectedValue, int newValue) { return _InterlockedCompareExchange((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    #else
     bool testAndSetRelaxed(int expectedValue, int newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
     bool testAndSetAcquire(int expectedValue, int newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_ACQUIRE, __ATOMIC_SEQ_CST); }
     bool testAndSetRelease(int expectedValue, int newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_RELEASE, __ATOMIC_SEQ_CST); }
     bool testAndSetOrdered(int expectedValue, int newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST); }
+    #endif
 
     static bool isFetchAndStoreNative() { return true; }
     static bool isFetchAndStoreWaitFree() { return true; }
 
+    #ifdef _MSC_VER
+    int fetchAndStoreRelaxed(int newValue) { return _InterlockedExchange((volatile long *)&_q_value, newValue); }
+    int fetchAndStoreAcquire(int newValue) { return _InterlockedExchange((volatile long *)&_q_value, newValue); }
+    int fetchAndStoreRelease(int newValue) { return _InterlockedExchange((volatile long *)&_q_value, newValue); }
+    int fetchAndStoreOrdered(int newValue) { return _InterlockedExchange((volatile long *)&_q_value, newValue); }
+    #else
     int fetchAndStoreRelaxed(int newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_SEQ_CST); }
     int fetchAndStoreAcquire(int newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_ACQUIRE); }
     int fetchAndStoreRelease(int newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_RELEASE); }
     int fetchAndStoreOrdered(int newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_ACQ_REL); }
+    #endif
 
     static bool isFetchAndAddNative() { return true; }
     static bool isFetchAndAddWaitFree() { return true; }
 
+    #ifdef _MSC_VER
+    int fetchAndAddRelaxed(int valueToAdd) { return _InterlockedExchangeAdd((volatile long *)&_q_value, valueToAdd); }
+    int fetchAndAddAcquire(int valueToAdd) { return _InterlockedExchangeAdd((volatile long *)&_q_value, valueToAdd); }
+    int fetchAndAddRelease(int valueToAdd) { return _InterlockedExchangeAdd((volatile long *)&_q_value, valueToAdd); }
+    int fetchAndAddOrdered(int valueToAdd) { return _InterlockedExchangeAdd((volatile long *)&_q_value, valueToAdd); }
+    #else
     int fetchAndAddRelaxed(int valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_SEQ_CST); }
     int fetchAndAddAcquire(int valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_ACQUIRE); }
     int fetchAndAddRelease(int valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_RELEASE); }
     int fetchAndAddOrdered(int valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_ACQ_REL); }
+    #endif
 };
 
 template <typename T>
@@ -153,28 +182,50 @@ public:
     }
 
     static bool isTestAndSetNative() { return true; }
-    static bool isTestAndSetWaitFree() { return true; }
+    static bool isTestAndSetWaitFree() { return true;
+    }
 
+    #ifdef _MSC_VER
+    bool testAndSetRelaxed(T *expectedValue, T *newValue) { return _InterlockedCompareExchangePointer((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    bool testAndSetAcquire(T *expectedValue, T *newValue) { return _InterlockedCompareExchangePointer((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    bool testAndSetRelease(T *expectedValue, T *newValue) { return _InterlockedCompareExchangePointer((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    bool testAndSetOrdered(T *expectedValue, T *newValue) { return _InterlockedCompareExchangePointer((volatile long *)&_q_value, newValue, expectedValue) == expectedValue; }
+    #else
     bool testAndSetRelaxed(T *expectedValue, T *newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
     bool testAndSetAcquire(T *expectedValue, T *newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_ACQUIRE, __ATOMIC_SEQ_CST); }
     bool testAndSetRelease(T *expectedValue, T *newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_RELEASE, __ATOMIC_SEQ_CST); }
     bool testAndSetOrdered(T *expectedValue, T *newValue) { return __atomic_compare_exchange_n(&_q_value, &expectedValue, newValue, false, __ATOMIC_ACQ_REL, __ATOMIC_SEQ_CST); }
+    #endif
 
     static bool isFetchAndStoreNative() { return true; }
     static bool isFetchAndStoreWaitFree() { return true; }
 
+    #ifdef _MSC_VER
+    T *fetchAndStoreRelaxed(T *newValue) { return _InterlockedExchangePointer((volatile long *)&_q_value, newValue); }
+    T *fetchAndStoreAcquire(T *newValue) { return _InterlockedExchangePointer((volatile long *)&_q_value, newValue); }
+    T *fetchAndStoreRelease(T *newValue) { return _InterlockedExchangePointer((volatile long *)&_q_value, newValue); }
+    T *fetchAndStoreOrdered(T *newValue) { return _InterlockedExchangePointer((volatile long *)&_q_value, newValue); }
+    #else
     T *fetchAndStoreRelaxed(T *newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_SEQ_CST); }
     T *fetchAndStoreAcquire(T *newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_ACQUIRE); }
     T *fetchAndStoreRelease(T *newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_RELEASE); }
     T *fetchAndStoreOrdered(T *newValue) { return __atomic_exchange_n(&_q_value, newValue, __ATOMIC_ACQ_REL); }
+    #endif
 
     static bool isFetchAndAddNative() { return true; }
     static bool isFetchAndAddWaitFree() { return true; }
 
+    #ifdef _MSC_VER
+    T *fetchAndAddRelaxed(qptrdiff valueToAdd) { return _InterlockedExchangeAddPointer((volatile long *)&_q_value, valueToAdd); }
+    T *fetchAndAddAcquire(qptrdiff valueToAdd) { return _InterlockedExchangeAddPointer((volatile long *)&_q_value, valueToAdd); }
+    T *fetchAndAddRelease(qptrdiff valueToAdd) { return _InterlockedExchangeAddPointer((volatile long *)&_q_value, valueToAdd); }
+    T *fetchAndAddOrdered(qptrdiff valueToAdd) { return _InterlockedExchangeAddPointer((volatile long *)&_q_value, valueToAdd); }
+    #else
     T *fetchAndAddRelaxed(qptrdiff valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_SEQ_CST); }
     T *fetchAndAddAcquire(qptrdiff valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_ACQUIRE); }
     T *fetchAndAddRelease(qptrdiff valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_RELEASE); }
     T *fetchAndAddOrdered(qptrdiff valueToAdd) { return __atomic_add_fetch(&_q_value, valueToAdd, __ATOMIC_ACQ_REL); }
+    #endif
 };
 
 #define Q_BASIC_ATOMIC_INITIALIZER(a) { (a) }
